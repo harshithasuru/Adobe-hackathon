@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Title & Heading Extractor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .upload-section {
+            padding: 40px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            background: #f8f9ff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .processing {
+            padding: 40px;
+            text-align: center;
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            padding: 40px;
+            display: none;
+        }
+
+        .result-card {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-left: 5px solid #667eea;
+        }
+
+        .title-section {
+            margin-bottom: 30px;
+        }
+
+        .title-label {
+            font-size: 0.9rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .document-title {
+            font-size: 1.8rem;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .outline-section h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+
+        .heading-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #eee;
+            transition: all 0.3s ease;
+        }
+
+        .heading-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .heading-content {
+            flex: 1;
+        }
+
+        .heading-level {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 15px;
+        }
+
+        .level-h1 {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .level-h2 {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .level-h3 {
+            background: #45b7d1;
+            color: white;
+        }
+
+        .heading-text {
+            font-size: 1rem;
+            color: #333;
+        }
+
+        .page-number {
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .json-output {
+            margin-top: 30px;
+        }
+
+        .json-container {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        .json-code {
+            color: #f8f8f2;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
+        .copy-btn {
+            background: #45b7d1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+        }
+
+        .error {
+            background: #ffe6e6;
+            border-left-color: #ff4757;
+            color: #c44569;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 PDF Processor</h1>
+            <p>Extract titles and headings from your PDF documents</p>
+        </div>
+
+        <div class="upload-section" id="uploadSection">
+            <div style="margin-bottom: 20px; text-align: center;">
+                <label style="font-weight: 500; margin-right: 20px;">
+                    <input type="radio" name="mode" value="single" checked onchange="setMode('single')"> Single PDF
+                </label>
+                <label style="font-weight: 500;">
+                    <input type="radio" name="mode" value="multi" onchange="setMode('multi')"> Multiple PDFs
+                </label>
+            </div>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text" id="uploadText">Drop your PDF here or click to browse</div>
+                <div class="upload-subtext" id="uploadSubtext">Supports PDFs up to 50 pages</div>
+                <button class="btn" onclick="document.getElementById('fileInput').click()">Choose File(s)</button>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf" multiple>
+            </div>
+        </div>
+
+        <div class="processing" id="processing">
+            <div class="spinner"></div>
+            <p>Processing your PDF...</p>
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        // Set up PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadSection = document.getElementById('uploadSection');
+        const processing = document.getElementById('processing');
+        const results = document.getElementById('results');
+
+        let mode = 'single';
+        function setMode(selectedMode) {
+            mode = selectedMode;
+            if (mode === 'single') {
+                fileInput.multiple = false;
+                document.getElementById('uploadText').textContent = 'Drop your PDF here or click to browse';
+                document.getElementById('uploadSubtext').textContent = 'Supports PDFs up to 50 pages';
+            } else {
+                fileInput.multiple = true;
+                document.getElementById('uploadText').textContent = 'Drop your PDFs here or click to browse (multiple)';
+                document.getElementById('uploadSubtext').textContent = 'Upload a collection of PDFs for batch processing';
+            }
+        }
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                if (mode === 'single') {
+                    processPDF(files[0]);
+                } else {
+                    processMultiplePDFs(files);
+                }
+            }
+        });
+
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                if (mode === 'single') {
+                    processPDF(e.target.files[0]);
+                } else {
+                    processMultiplePDFs(e.target.files);
+                }
+            }
+        });
+
+        async function processPDF(file) {
+            if (file.type !== 'application/pdf') {
+                alert('Please select a PDF file.');
+                return;
+            }
+            uploadSection.style.display = 'none';
+            processing.style.display = 'block';
+            results.style.display = 'none';
+            try {
+                const formData = new FormData();
+                formData.append('pdfs', file);
+                const response = await fetch('http://localhost:5000/extract-outline', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                displayResults(result);
+            } catch (error) {
+                console.error('Error processing PDF:', error);
+                displayError('Error processing PDF: ' + error.message);
+            }
+        }
+
+        async function processMultiplePDFs(files) {
+            uploadSection.style.display = 'none';
+            processing.style.display = 'block';
+            results.style.display = 'none';
+            try {
+                const formData = new FormData();
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i].type !== 'application/pdf') continue;
+                    formData.append('pdfs', files[i]);
+                }
+                const response = await fetch('http://localhost:5000/extract-outline', {
+                    method: 'POST',
+                    body: formData
+                });
+                const resultsArr = await response.json();
+                displayMultiResults(resultsArr);
+            } catch (error) {
+                console.error('Error processing PDFs:', error);
+                displayError('Error processing PDFs: ' + error.message);
+            }
+        }
+
+        async function extractFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            
+            let title = "Untitled Document";
+            let outline = [];
+            let allTextItems = [];
+
+            // Extract text from all pages
+            for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 50); pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const textContent = await page.getTextContent();
+                
+                textContent.items.forEach(item => {
+                    if (item.str.trim()) {
+                        allTextItems.push({
+                            text: item.str.trim(),
+                            fontSize: item.height,
+                            page: pageNum,
+                            y: item.transform[5]
+                        });
+                    }
+                });
+            }
+
+            // Extract title (largest font on first page)
+            const firstPageItems = allTextItems.filter(item => item.page === 1);
+            if (firstPageItems.length > 0) {
+                const maxFontSize = Math.max(...firstPageItems.map(item => item.fontSize));
+                const titleCandidates = firstPageItems
+                    .filter(item => item.fontSize >= maxFontSize - 1)
+                    .filter(item => item.text.length > 5 && item.text.length < 150);
+                
+                if (titleCandidates.length > 0) {
+                    title = titleCandidates[0].text;
+                }
+            }
+
+            // Extract headings
+            const processedTexts = new Set();
+            const headingPatterns = [
+                /^[0-9]+\./,
+                /^[A-Z][A-Z\s]*$/,
+                /^Chapter\s+\d+/i,
+                /^Section\s+\d+/i,
+                /^Part\s+[IVX]+/i,
+                /^\d+\.\d+/,
+                /^\d+\.\d+\.\d+/
+            ];
+
+            allTextItems.forEach(item => {
+                const text = item.text.trim();
+                
+                if (processedTexts.has(text) || 
+                    text.length < 3 || 
+                    text.length > 200 ||
+                    text.toLowerCase() === title.toLowerCase()) {
+                    return;
+                }
+
+                let level = null;
+                const hasPattern = headingPatterns.some(pattern => pattern.test(text));
+
+                // Classify by font size and patterns
+                if (item.fontSize >= 18) {
+                    level = "H1";
+                } else if (item.fontSize >= 14) {
+                    level = "H2";
+                } else if (item.fontSize >= 12) {
+                    level = "H3";
+                } else if (hasPattern && item.fontSize >= 10) {
+                    if (item.fontSize >= 16) level = "H1";
+                    else if (item.fontSize >= 13) level = "H2";
+                    else level = "H3";
+                }
+
+                if (level) {
+                    outline.push({
+                        level: level,
+                        text: text,
+                        page: item.page
+                    });
+                    processedTexts.add(text);
+                }
+            });
+
+            // Sort outline by page and position
+            outline.sort((a, b) => {
+                if (a.page !== b.page) return a.page - b.page;
+                const aItem = allTextItems.find(item => item.text === a.text);
+                const bItem = allTextItems.find(item => item.text === b.text);
+                return (bItem ? bItem.y : 0) - (aItem ? aItem.y : 0);
+            });
+
+            return { title, outline };
+        }
+
+        function displayResults(result) {
+            processing.style.display = 'none';
+            results.style.display = 'block';
+
+            const h1Count = result.outline.filter(item => item.level === 'H1').length;
+            const h2Count = result.outline.filter(item => item.level === 'H2').length;
+            const h3Count = result.outline.filter(item => item.level === 'H3').length;
+
+            results.innerHTML = `
+                <div class="result-card">
+                    <div class="title-section">
+                        <div class="title-label">Document Title</div>
+                        <div class="document-title">${result.title}</div>
+                    </div>
+                    
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="stat-number">${h1Count}</div>
+                            <div class="stat-label">H1 Headings</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${h2Count}</div>
+                            <div class="stat-label">H2 Headings</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${h3Count}</div>
+                            <div class="stat-label">H3 Headings</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${result.outline.length}</div>
+                            <div class="stat-label">Total Headings</div>
+                        </div>
+                    </div>
+
+                    <div class="outline-section">
+                        <h3>📋 Document Outline</h3>
+                        ${result.outline.map(heading => `
+                            <div class="heading-item">
+                                <div class="heading-content">
+                                    <span class="heading-level level-${heading.level.toLowerCase()}">${heading.level}</span>
+                                    <span class="heading-text">${heading.text}</span>
+                                </div>
+                                <div class="page-number">Page ${heading.page}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="json-output">
+                        <h3>📄 JSON Output</h3>
+                        <button class="copy-btn" onclick="copyToClipboard()">Copy JSON</button>
+                        <div class="json-container">
+                            <pre class="json-code" id="jsonCode">${JSON.stringify(result, null, 2)}</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; padding: 20px;">
+                    <button class="btn" onclick="resetApp()">Process Another PDF</button>
+                </div>
+            `;
+        }
+
+        function displayMultiResults(resultsArr) {
+            processing.style.display = 'none';
+            results.style.display = 'block';
+            results.innerHTML = resultsArr.map(result => {
+                const h1Count = result.outline.filter(item => item.level === 'H1').length;
+                const h2Count = result.outline.filter(item => item.level === 'H2').length;
+                const h3Count = result.outline.filter(item => item.level === 'H3').length;
+                return `
+                <div class="result-card">
+                    <div class="title-section">
+                        <div class="title-label">Document Title</div>
+                        <div class="document-title">${result.title} <span style='font-size:0.9rem;color:#888;'>(File: ${result.filename})</span></div>
+                    </div>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <div class="stat-number">${h1Count}</div>
+                            <div class="stat-label">H1 Headings</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${h2Count}</div>
+                            <div class="stat-label">H2 Headings</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${h3Count}</div>
+                            <div class="stat-label">H3 Headings</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${result.outline.length}</div>
+                            <div class="stat-label">Total Headings</div>
+                        </div>
+                    </div>
+                    <div class="outline-section">
+                        <h3>📋 Document Outline</h3>
+                        ${result.outline.map(heading => `
+                            <div class="heading-item">
+                                <div class="heading-content">
+                                    <span class="heading-level level-${heading.level.toLowerCase()}">${heading.level}</span>
+                                    <span class="heading-text">${heading.text}</span>
+                                </div>
+                                <div class="page-number">Page ${heading.page}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="json-output">
+                        <h3>📄 JSON Output</h3>
+                        <button class="copy-btn" onclick="copyMultiToClipboard(${JSON.stringify(result).replace(/"/g, '&quot;')})">Copy JSON</button>
+                        <div class="json-container">
+                            <pre class="json-code">${JSON.stringify(result, null, 2)}</pre>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('') + `
+                <div style="text-align: center; padding: 20px;">
+                    <button class="btn" onclick="resetApp()">Process More PDFs</button>
+                </div>
+            `;
+        }
+
+        function displayError(message) {
+            processing.style.display = 'none';
+            results.style.display = 'block';
+            
+            results.innerHTML = `
+                <div class="result-card error">
+                    <h3>❌ Error</h3>
+                    <p>${message}</p>
+                    <button class="btn" onclick="resetApp()" style="margin-top: 20px;">Try Again</button>
+                </div>
+            `;
+        }
+
+        function copyToClipboard() {
+            const jsonCode = document.getElementById('jsonCode');
+            navigator.clipboard.writeText(jsonCode.textContent).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#2ed573';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#45b7d1';
+                }, 2000);
+            });
+        }
+
+        function copyMultiToClipboard(jsonStr) {
+            navigator.clipboard.writeText(JSON.stringify(JSON.parse(jsonStr.replace(/&quot;/g, '"')), null, 2)).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#2ed573';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#45b7d1';
+                }, 2000);
+            });
+        }
+
+        function resetApp() {
+            uploadSection.style.display = 'block';
+            processing.style.display = 'none';
+            results.style.display = 'none';
+            fileInput.value = '';
+        }
+    </script>
+</body>
+</html>
